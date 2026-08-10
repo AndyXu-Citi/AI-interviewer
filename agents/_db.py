@@ -49,6 +49,34 @@ def _load_seed() -> list[dict]:
     return []
 
 
+def _clean(s):
+    """Repair MySQL latin1/cp1252 mojibake caused by a mis-configured connection
+    charset (the original UTF-8 bytes were decoded as latin1/cp1252).
+
+    MySQL's "latin1" is effectively cp1252, so try cp1252 first, then latin1.
+    Correctly-encoded CJK text has codepoints > 0xFF and cannot be re-encoded to
+    either, so it is returned unchanged — this never corrupts good data.
+    """
+    if not isinstance(s, str):
+        return s
+    for enc in ("cp1252", "latin1"):
+        try:
+            return s.encode(enc).decode("utf-8")
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            continue
+    return s
+
+
+def _clean_value(v):
+    if isinstance(v, str):
+        return _clean(v)
+    if isinstance(v, list):
+        return [_clean_value(x) for x in v]
+    if isinstance(v, dict):
+        return {k: _clean_value(x) for k, x in v.items()}
+    return v
+
+
 def get_connection():
     """Return a MySQL connection, or None if not configured."""
     global _CONN
@@ -64,9 +92,8 @@ def get_connection():
         _CONN = mysql.connector.connect(
             host=host, port=int(os.getenv("DB_PORT", "3306")),
             user=user, password=password, database=database,
+            charset="utf8mb4",          # 源头修复：强制 UTF-8 收发，避免 latin1 误读
         )
-        # 声明连接字符集，让 MySQL 按 UTF-8 传输中文（否则默认 latin1 导致乱码）
-        _CONN.cursor().execute("SET NAMES utf8mb4")
         return _CONN
     except Exception as e:
         logger.error(f"[db] mysql connect failed: {type(e).__name__}: {e}")
@@ -80,7 +107,7 @@ def _row_to_job(r: dict) -> dict:
             skills = json.loads(skills)
         except (json.JSONDecodeError, ValueError):
             skills = [s.strip() for s in skills.split(",") if s.strip()]
-    return {
+    return _clean_value({
         "id": r.get("id") or r.get("encrypt_job_id"),
         "title": r.get("title") or r.get("job_name"),
         "company": r.get("company") or r.get("brand_name"),
@@ -93,7 +120,7 @@ def _row_to_job(r: dict) -> dict:
         "description": r.get("description") or r.get("post_description") or "",
         "source": r.get("source", "boss_zhipin"),
         "crawled_at": r.get("crawled_at"),
-    }
+    })
 
 
 def _final_row_to_job(row: dict) -> dict:
@@ -113,7 +140,7 @@ def _final_row_to_job(row: dict) -> dict:
             skills = json.loads(skills)
         except (json.JSONDecodeError, ValueError):
             skills = [s.strip() for s in skills.split(",") if s.strip()]
-    return {
+    return _clean_value({
         "id": str(row.get("id") or ""),
         "title": structured.get("title") or boss.get("job_name") or "",
         "company": boss.get("brand_name") or boss.get("company_name") or "",
@@ -126,7 +153,7 @@ def _final_row_to_job(row: dict) -> dict:
         "description": boss.get("post_description") or "",
         "source": "boss_zhipin",
         "crawled_at": row.get("processed_at"),
-    }
+    })
 
 
 def _fetch_all() -> list[dict]:
