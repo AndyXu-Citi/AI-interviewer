@@ -65,6 +65,8 @@ def get_connection():
             host=host, port=int(os.getenv("DB_PORT", "3306")),
             user=user, password=password, database=database,
         )
+        # 声明连接字符集，让 MySQL 按 UTF-8 传输中文（否则默认 latin1 导致乱码）
+        _CONN.cursor().execute("SET NAMES utf8mb4")
         return _CONN
     except Exception as e:
         logger.error(f"[db] mysql connect failed: {type(e).__name__}: {e}")
