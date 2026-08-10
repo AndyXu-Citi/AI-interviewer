@@ -4,9 +4,11 @@ Local Boss Zhipin crawler (LOCAL ONLY — never deployed to EdgeOne).
 
 EdgeOne's serverless / Agents runtime has no browser, so this script lives on
 your machine. It scrapes Boss Zhipin job cards via Playwright + CDP (to dodge
-WebDriver detection), normalizes them to the `jobs` schema, and writes
-`data/seed/boss_jobs.json`. The cloud app reads that file (or the MySQL `jobs`
-table) — it never triggers crawling itself.
+WebDriver detection), normalizes them to the ai_collector pipeline schema and
+writes them into MySQL `final_results` (source_type='boss_zhipin', payload under
+structured_json._boss) — exactly the schema ai_collector_project uses. It also
+mirrors the data to data/seed/boss_jobs.json so the cloud app has a JSON
+fallback. The cloud app reads the DB / JSON; it never triggers crawling.
 
 Usage:
     python scripts/crawl_boss.py --keyword "AI应用开发工程师" --city "上海" --pages 5
@@ -17,6 +19,7 @@ Env / args:
     --pages     max pages to crawl
     --cdp       optional CDP websocket url (e.g. from a logged-in Chrome)
     COOKIES_TXT optional path to a cookies.txt exported from your logged-in session
+    DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME  MySQL target (optional; skips DB write if unset)
 
 Requires: pip install playwright  (and `playwright install chromium`)
 NOTE: scraping Boss Zhipin may violate its ToS. Use only on data you are
@@ -28,7 +31,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 import sys
 import time
 
@@ -44,26 +46,105 @@ CITY_CODES = {
 }
 
 
+def _as_list(v):
+    if v is None:
+        return []
+    if isinstance(v, str):
+        return [s.strip() for s in v.split(",") if s.strip()]
+    return list(v)
+
+
 def _normalize(card: dict) -> dict:
-    """Normalize a Boss job card / jobList item to the `jobs` schema."""
-    sec = card.get("securityId") or card.get("encryptJobId") or card.get("lid") or ""
-    skills = card.get("skills") or []
-    if isinstance(skills, str):
-        skills = [s.strip() for s in skills.split(",") if s.strip()]
+    """Normalize a Boss jobList item to the ai_collector final_results schema.
+
+    Payload mirrors ai_collector_project/src/mcp_server/ai_collector_mcp.py:
+    title lives at structured_json.title, the rest under structured_json._boss.
+    """
+    skills = _as_list(card.get("skills"))
+    labels = _as_list(card.get("detailLabels"))
     return {
-        "id": card.get("encryptJobId") or sec,
-        "title": card.get("jobName") or card.get("title"),
-        "company": card.get("brandName") or card.get("company"),
-        "salary": card.get("salaryDesc") or card.get("salary"),
-        "city": card.get("cityName") or card.get("city"),
-        "district": card.get("areaDistrict") or card.get("district"),
-        "experience": card.get("jobExperience") or card.get("experienceName") or card.get("experience"),
-        "education": card.get("jobDegree") or card.get("degreeName") or card.get("education"),
-        "skills": skills,
-        "description": card.get("postDescription") or card.get("description") or "",
+        "id": card.get("encryptJobId") or card.get("securityId") or card.get("lid") or "",
+        "title": card.get("jobName") or card.get("title") or "",
+        "structured_json": {
+            "title": card.get("jobName") or card.get("title") or "",
+            "summary": card.get("summary") or "",
+            "_boss": {
+                "brand_name": card.get("brandName") or card.get("company") or "",
+                "salary_desc": card.get("salaryDesc") or card.get("salary") or "",
+                "city": card.get("cityName") or card.get("city") or "",
+                "address": card.get("areaDistrict") or card.get("district") or "",
+                "experience_name": (card.get("jobExperience") or card.get("experienceName")
+                                    or card.get("experience") or ""),
+                "degree_name": (card.get("jobDegree") or card.get("degreeName")
+                                or card.get("education") or ""),
+                "skills": skills,
+                "detail_labels": labels,
+                "post_description": card.get("postDescription") or card.get("description") or "",
+                "encrypt_job_id": card.get("encryptJobId") or "",
+                "security_id": card.get("securityId") or "",
+                "lid": card.get("lid") or "",
+                "boss_name": card.get("bossName") or "",
+                "boss_title": card.get("bossTitle") or "",
+            },
+        },
         "source": "boss_zhipin",
         "crawled_at": int(time.time() * 1000),
     }
+
+
+def _flat_seed(norm: dict) -> dict:
+    """Flatten a normalized job back to the simple seed JSON shape (JSON fallback)."""
+    b = norm["structured_json"]["_boss"]
+    return {
+        "id": norm["id"],
+        "title": norm["title"],
+        "company": b["brand_name"],
+        "salary": b["salary_desc"],
+        "city": b["city"],
+        "district": b["address"],
+        "experience": b["experience_name"],
+        "education": b["degree_name"],
+        "skills": b["skills"],
+        "description": b["post_description"],
+        "source": norm["source"],
+    }
+
+
+def _save_to_mysql(jobs: list[dict]) -> int:
+    """Persist jobs into MySQL final_results (ai_collector schema). Returns rows written."""
+    if not (os.getenv("DB_HOST") and os.getenv("DB_PASSWORD")):
+        print("[db] DB_* not configured — skipping MySQL write")
+        return 0
+    import mysql.connector
+
+    conn = mysql.connector.connect(
+        host=os.getenv("DB_HOST"), port=int(os.getenv("DB_PORT", "3306")),
+        user=os.getenv("DB_USER", "root"), password=os.getenv("DB_PASSWORD"),
+        database=os.getenv("DB_NAME", "ai_interviewer"), connection_timeout=10,
+    )
+    cur = conn.cursor()
+    now = time.strftime("%Y-%m-%d %H:%M:%S")
+    written = 0
+    for j in jobs:
+        url = f"https://www.zhipin.com/job_detail/{j['id']}.html"
+        cur.execute(
+            "INSERT IGNORE INTO urls_history (url, first_seen_at, last_seen_at) "
+            "VALUES (%s, %s, %s)", (url, now, now),
+        )
+        cur.execute(
+            "INSERT IGNORE INTO task_queue (url, status, source_type, created_at) "
+            "VALUES (%s, 'COMPLETED', 'boss_zhipin', %s)", (url, now),
+        )
+        cur.execute(
+            "INSERT INTO final_results (url, source_type, structured_json, processed_at) "
+            "VALUES (%s, 'boss_zhipin', %s, %s)",
+            (url, json.dumps(j["structured_json"], ensure_ascii=False), now),
+        )
+        written += cur.rowcount if cur.rowcount != -1 else 1
+    conn.commit()
+    cur.close()
+    conn.close()
+    return written
 
 
 def _strip_webdriver(page) -> None:
@@ -144,9 +225,14 @@ def main() -> int:
     jobs = crawl(args.keyword, args.city, args.pages, args.cdp)
     print(f"[crawl] collected {len(jobs)} jobs")
 
+    # 1) MySQL final_results (ai_collector schema)
+    written = _save_to_mysql(jobs)
+    print(f"[db] wrote {written} rows to final_results")
+
+    # 2) JSON seed fallback (flat shape, same as before)
     os.makedirs(os.path.dirname(SEED_PATH), exist_ok=True)
     with open(SEED_PATH, "w", encoding="utf-8") as f:
-        json.dump(jobs, f, ensure_ascii=False, indent=2)
+        json.dump([_flat_seed(j) for j in jobs], f, ensure_ascii=False, indent=2)
     print(f"[crawl] wrote {SEED_PATH}")
     return 0
 
