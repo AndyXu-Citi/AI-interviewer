@@ -64,6 +64,7 @@ def get_connection():
         _CONN = mysql.connector.connect(
             host=host, port=int(os.getenv("DB_PORT", "3306")),
             user=user, password=password, database=database,
+            charset="utf8mb4", use_unicode=True,
         )
         return _CONN
     except Exception as e:
