@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import type { Job } from './types';
 import type { MessageKeys } from './i18n';
 import { I18nProvider, LangToggle, useT } from './i18n';
+import { ThemeToggle, initTheme } from './components/ThemeToggle';
 import ChatView, { type LampDef } from './components/ChatView';
 import JobLibrary from './components/JobLibrary';
 import SkillReport from './components/SkillReport';
@@ -10,6 +11,8 @@ import GitHubLink from './components/GitHubLink';
 import DeployLink from './components/DeployLink';
 import type { InterviewSetupData } from './components/InterviewSetup';
 import styles from './App.module.css';
+
+initTheme();
 
 type TabKey = 'jobAgent' | 'jobs' | 'report' | 'match' | 'interview';
 
@@ -37,6 +40,7 @@ export default function App() {
   return (
     <I18nProvider>
       <LangToggle />
+      <ThemeToggle />
       <AppInner />
     </I18nProvider>
   );

@@ -19,7 +19,7 @@
 .inputCard, .controls {
   border: 1px solid var(--bg-border);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.025);
+  background: var(--card-bg);
   padding: 16px 18px;
   display: flex;
   flex-direction: column;
@@ -61,7 +61,7 @@
   border: 1px solid var(--bg-border);
   transition: all 0.15s;
 }
-.primary { background: var(--accent-gold); border-color: var(--accent-gold); color: #1a1408; font-weight: 600; }
+.primary { background: var(--accent-gold); border-color: var(--accent-gold); color: var(--text-on-accent); font-weight: 600; }
 .primary:hover { filter: brightness(1.08); }
 .ghost { background: transparent; color: var(--text-secondary); }
 .ghost:hover { border-color: var(--accent-gold); }
@@ -74,7 +74,7 @@
 .row {
   border: 1px solid var(--bg-border);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.025);
+  background: var(--card-bg);
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
@@ -91,9 +91,9 @@
   min-width: 54px;
   text-align: right;
 }
-.scoreHigh { color: #4ade80; }
+.scoreHigh { color: var(--success); }
 .scoreMid { color: var(--accent-gold); }
-.scoreLow { color: #ff8a8a; }
+.scoreLow { color: var(--danger); }
 .reason { font-size: 0.78rem; line-height: 1.6; color: var(--text-secondary); white-space: pre-wrap; margin: 0; }
 .useBtn {
   align-self: flex-start;
@@ -102,7 +102,7 @@
   font-size: 0.76rem;
   cursor: pointer;
   border: 1px solid var(--accent-gold);
-  background: rgba(245, 200, 66, 0.1);
+  background: var(--accent-gold-dim);
   color: var(--accent-gold);
 }
-.useBtn:hover { background: rgba(245, 200, 66, 0.18); }
+.useBtn:hover { background: var(--accent-gold); color: var(--text-on-accent); }

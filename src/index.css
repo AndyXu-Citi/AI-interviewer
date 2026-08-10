@@ -4,24 +4,45 @@
   padding: 0;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   Theme tokens — light is default; dark via [data-theme="dark"]
+   ═══════════════════════════════════════════════════════════════ */
+
 :root {
-  --bg-base: #0a0a0f;
-  --bg-surface: #111118;
-  --bg-elevated: #18181f;
-  --bg-border: #2a2a38;
+  /* Backgrounds */
+  --bg-base: #f7f7fa;
+  --bg-surface: #ffffff;
+  --bg-elevated: #f1f1f6;
+  --bg-border: #e0e0e8;
 
-  --text-primary: #f0f0f8;
-  --text-secondary: #8888aa;
-  --text-muted: #44445a;
+  /* Text */
+  --text-primary: #1a1a24;
+  --text-secondary: #5a5a72;
+  --text-muted: #9a9aae;
 
-  --accent-gold: #f5c842;
-  --accent-gold-dim: #f5c84230;
-  --accent-gold-glow: #f5c84260;
+  /* Accent */
+  --accent-gold: #c7960f;
+  --accent-gold-dim: rgba(199, 150, 15, 0.12);
+  --accent-gold-glow: rgba(199, 150, 15, 0.25);
+  --text-on-accent: #1a1408;
 
-  --user-bubble: #1e1e2e;
-  --user-border: #3a3a5a;
-  --bot-bubble: #151520;
-  --bot-border: #252535;
+  /* Bubbles */
+  --user-bubble: #f1f1f7;
+  --user-border: #d8d8e4;
+  --bot-bubble: #ffffff;
+  --bot-border: #e6e6ef;
+
+  /* Surfaces & interactions */
+  --panel-bg: rgba(0, 0, 0, 0.02);
+  --card-bg: rgba(0, 0, 0, 0.02);
+  --hover-bg: rgba(0, 0, 0, 0.04);
+  --input-bg: var(--bg-base);
+
+  /* Feedback */
+  --danger: #dc2626;
+  --danger-bg: rgba(220, 38, 38, 0.08);
+  --success: #16a34a;
+  --success-bg: rgba(22, 163, 74, 0.08);
 
   --font-display: 'Syne', sans-serif;
   --font-mono: 'DM Mono', monospace;
@@ -31,9 +52,42 @@
   --radius-lg: 20px;
   --radius-xl: 28px;
 
-  --shadow-card: 0 8px 40px rgba(0,0,0,0.5);
+  --shadow-card: 0 8px 40px rgba(20, 20, 40, 0.08);
   --transition-fast: 140ms cubic-bezier(.4,0,.2,1);
   --transition-med: 280ms cubic-bezier(.4,0,.2,1);
+}
+
+[data-theme="dark"] {
+  --bg-base: #0a0a0f;
+  --bg-surface: #111118;
+  --bg-elevated: #18181f;
+  --bg-border: #2a2a38;
+
+  --text-primary: #f0f0f8;
+  --text-secondary: #8888aa;
+  --text-muted: #55556a;
+
+  --accent-gold: #f5c842;
+  --accent-gold-dim: rgba(245, 200, 66, 0.12);
+  --accent-gold-glow: rgba(245, 200, 66, 0.25);
+  --text-on-accent: #1a1408;
+
+  --user-bubble: #1e1e2e;
+  --user-border: #3a3a5a;
+  --bot-bubble: #151520;
+  --bot-border: #252535;
+
+  --panel-bg: rgba(255, 255, 255, 0.025);
+  --card-bg: rgba(255, 255, 255, 0.025);
+  --hover-bg: rgba(255, 255, 255, 0.04);
+  --input-bg: var(--bg-base);
+
+  --danger: #ff6b6b;
+  --danger-bg: rgba(255, 100, 100, 0.14);
+  --success: #4ade80;
+  --success-bg: rgba(74, 222, 128, 0.1);
+
+  --shadow-card: 0 8px 40px rgba(0,0,0,0.5);
 }
 
 html, body, #root {
@@ -44,6 +98,7 @@ html, body, #root {
   font-family: var(--font-mono);
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
+  transition: background var(--transition-med), color var(--transition-med);
 }
 
 /* scrollbar */
@@ -64,15 +119,16 @@ html, body, #root {
   padding: 6px 14px;
   border-radius: 20px;
   border: none;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--panel-bg);
   backdrop-filter: blur(12px);
   cursor: pointer;
   transition: background 0.3s ease, box-shadow 0.3s ease;
   line-height: 1;
+  border: 1px solid var(--bg-border);
 }
 .lang-toggle:hover {
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 0 20px rgba(245, 200, 66, 0.06);
+  background: var(--hover-bg);
+  box-shadow: 0 0 20px var(--accent-gold-glow);
 }
 .lang-toggle:active {
   transform: scale(0.96);
@@ -106,4 +162,32 @@ html, body, #root {
   opacity: 0.4;
   margin: 0 3px;
   user-select: none;
+}
+
+/* Theme toggle */
+.theme-toggle {
+  position: fixed;
+  top: 14px;
+  right: 82px;
+  z-index: 1000;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--bg-border);
+  background: var(--panel-bg);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+  backdrop-filter: blur(12px);
+}
+.theme-toggle:hover {
+  background: var(--hover-bg);
+  color: var(--accent-gold);
+  box-shadow: 0 0 16px var(--accent-gold-glow);
+}
+.theme-toggle:active {
+  transform: scale(0.94);
 }
