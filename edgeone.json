@@ -4,6 +4,10 @@
   "cloudFunctions": {
     "nodejs": {
       "includeFiles": ["data/**"]
+    },
+    "python": {
+      "includeFiles": ["data/**"],
+      "maxDuration": 60
     }
   },
   "agents": {

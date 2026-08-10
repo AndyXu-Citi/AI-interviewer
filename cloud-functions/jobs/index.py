@@ -12,8 +12,10 @@ import time
 import traceback
 
 _PARENT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _PARENT_DIR not in sys.path:
-    sys.path.insert(0, _PARENT_DIR)
+_ROOT_DIR = os.path.dirname(_PARENT_DIR)
+for _d in (_PARENT_DIR, _ROOT_DIR):
+    if _d not in sys.path:
+        sys.path.insert(0, _d)
 
 from agents._db import search_jobs
 from _logger import create_logger
