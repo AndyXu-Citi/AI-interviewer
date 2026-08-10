@@ -1,0 +1,253 @@
+[
+  {
+    "id": "deada3eadbd56f8d0nJ739S6EldX",
+    "title": "业务技术- Java AI Agent 应用开发工程师",
+    "company": "阿里巴巴集团",
+    "salary": "24-45K",
+    "city": "杭州",
+    "district": "余杭区",
+    "experience": "在校/应届",
+    "education": "本科",
+    "skills": [
+      "Java",
+      "Spring",
+      "JVM",
+      "MyBatis",
+      "MySQL",
+      "Redis",
+      "PostgreSQL",
+      "分布式经验",
+      "架构设计经验",
+      "不接受居家办公"
+    ],
+    "description": "",
+    "source": "boss_zhipin"
+  },
+  {
+    "id": "bc55aa6f319a6cfa0nF60tq-GFZY",
+    "title": "AI 应用开发",
+    "company": "成都克诺丰赢科技",
+    "salary": "280-400元/天",
+    "city": "杭州",
+    "district": "上城区",
+    "experience": "",
+    "education": "本科",
+    "skills": [
+      "MySQL",
+      "Python"
+    ],
+    "description": "",
+    "source": "boss_zhipin"
+  },
+  {
+    "id": "b717200bcee46a4e0nF53Nm1EFNX",
+    "title": "AI应用开发实习生-财经业务",
+    "company": "北京字节跳动",
+    "salary": "400-500元/天",
+    "city": "杭州",
+    "district": "余杭区",
+    "experience": "",
+    "education": "本科",
+    "skills": [],
+    "description": "",
+    "source": "boss_zhipin"
+  },
+  {
+    "id": "02b967e61358b2d90nJ739-7EVJR",
+    "title": "ai应用开发工程师",
+    "company": "阿里巴巴集团",
+    "salary": "24-25K",
+    "city": "杭州",
+    "district": "余杭区",
+    "experience": "在校/应届",
+    "education": "本科",
+    "skills": [
+      "Java",
+      "Spring",
+      "MySQL"
+    ],
+    "description": "",
+    "source": "boss_zhipin"
+  },
+  {
+    "id": "4d0cc766a7ac0cb00nF80tS0E1NU",
+    "title": "AI应用开发 （外包农夫山泉）",
+    "company": "盖硕网络",
+    "salary": "11-16K",
+    "city": "杭州",
+    "district": "西湖区",
+    "experience": "5-10年",
+    "education": "本科",
+    "skills": [
+      "Python",
+      "Flask",
+      "MySQL",
+      "分布式经验",
+      "微服务经验"
+    ],
+    "description": "",
+    "source": "boss_zhipin"
+  },
+  {
+    "id": "0b8f4c0ef35bdf060nd90tW6GVVS",
+    "title": "Python AI 应用开发工程师 岗位代码 PY01",
+    "company": "杭州赢云贸易有限公司",
+    "salary": "15-30K",
+    "city": "杭州",
+    "district": "余杭区",
+    "experience": "经验不限",
+    "education": "本科",
+    "skills": [
+      "Python",
+      "Spark",
+      "AI Engineering"
+    ],
+    "description": "",
+    "source": "boss_zhipin"
+  },
+  {
+    "id": "4a14f37d3f4e984b0nJ62tS_EVRW",
+    "title": "AI 应用开发全栈工程师",
+    "company": "上海天正软件",
+    "salary": "15-25K",
+    "city": "杭州",
+    "district": "余杭区",
+    "experience": "经验不限",
+    "education": "本科",
+    "skills": [
+      "Java",
+      "Spring",
+      "MySQL",
+      "TypeScript"
+    ],
+    "description": "",
+    "source": "boss_zhipin"
+  },
+  {
+    "id": "b2038a69bdad258d0ndz3d69FltV",
+    "title": "AI 应用开发",
+    "company": "美国道富",
+    "salary": "30-50K",
+    "city": "杭州",
+    "district": "滨江区",
+    "experience": "5-10年",
+    "education": "本科",
+    "skills": [
+      "AI 应用开发",
+      "大模型交互"
+    ],
+    "description": "",
+    "source": "boss_zhipin"
+  },
+  {
+    "id": "be330f18d097f3a00nFz29u8GVZW",
+    "title": "AI智能体应用高级研发工程师",
+    "company": "杭州智慧好房科技",
+    "salary": "12-20K",
+    "city": "杭州",
+    "district": "临平区",
+    "experience": "1-3年",
+    "education": "本科",
+    "skills": [
+      "Java",
+      "C++",
+      "Tomcat",
+      "团队管理经验",
+      "不接受居家办公",
+      "MySQL",
+      "MyBatis",
+      "Spring",
+      "Python"
+    ],
+    "description": "",
+    "source": "boss_zhipin"
+  },
+  {
+    "id": "e51463b9e56e67990nR_3Ni5FlFV",
+    "title": "AI工程师-模型应用",
+    "company": "边锋",
+    "salary": "20-30K",
+    "city": "杭州",
+    "district": "拱墅区",
+    "experience": "经验不限",
+    "education": "本科",
+    "skills": [],
+    "description": "",
+    "source": "boss_zhipin"
+  },
+  {
+    "id": "4ffb8737d78814270nd_3N-_F1ZT",
+    "title": "AI应用系统开发工程师",
+    "company": "浙江碳路先锋科技",
+    "salary": "20-35K·13薪",
+    "city": "杭州",
+    "district": "拱墅区",
+    "experience": "5-10年",
+    "education": "本科",
+    "skills": [
+      "Java",
+      "SpringCloud",
+      "MySQL",
+      "AI CODING",
+      "Spring"
+    ],
+    "description": "",
+    "source": "boss_zhipin"
+  },
+  {
+    "id": "12b57256e2881c240nF909q-EldU",
+    "title": "AI应用开发实习生-飞书项目",
+    "company": "字节跳动",
+    "salary": "480-500元/天",
+    "city": "杭州",
+    "district": "余杭区",
+    "experience": "",
+    "education": "本科",
+    "skills": [],
+    "description": "",
+    "source": "boss_zhipin"
+  },
+  {
+    "id": "164a8368d2bc2ee00nZ829y1GFJT",
+    "title": "AI工程师-应用开发方向",
+    "company": "杭州蚂蚁智能科技",
+    "salary": "400-800元/天",
+    "city": "杭州",
+    "district": "西湖区",
+    "experience": "",
+    "education": "本科",
+    "skills": [
+      "Java",
+      "Spring",
+      "MySQL"
+    ],
+    "description": "",
+    "source": "boss_zhipin"
+  },
+  {
+    "id": "4c526be5a9809ce70nF-2tm4GVVT",
+    "title": "AI应用开发实习生（27届）",
+    "company": "杭州炎魂网络",
+    "salary": "250-350元/天",
+    "city": "杭州",
+    "district": "滨江区",
+    "experience": "",
+    "education": "本科",
+    "skills": [],
+    "description": "",
+    "source": "boss_zhipin"
+  },
+  {
+    "id": "e70e90b226a767300nFz3N20ElNX",
+    "title": "AI应用研发工程师",
+    "company": "淘天集团",
+    "salary": "15-30K",
+    "city": "杭州",
+    "district": "余杭区",
+    "experience": "在校/应届",
+    "education": "本科",
+    "skills": [],
+    "description": "",
+    "source": "boss_zhipin"
+  }
+]

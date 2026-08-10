@@ -1,0 +1,73 @@
+.wrap {
+  flex: 1;
+  overflow-y: auto;
+  padding: 28px 32px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.header { display: flex; flex-direction: column; gap: 4px; }
+.title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+.subtitle { font-size: 0.75rem; color: var(--text-muted); margin: 0; }
+.muted { font-size: 0.85rem; color: var(--text-muted); }
+
+.statRow { display: flex; gap: 14px; }
+.statCard {
+  flex: 1;
+  border: 1px solid var(--bg-border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.statNum {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--accent-gold);
+}
+.statLabel { font-size: 0.75rem; color: var(--text-secondary); }
+
+.section { display: flex; flex-direction: column; gap: 8px; }
+.sectionTitle {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin: 0;
+}
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } }
+
+.bars { display: flex; flex-direction: column; gap: 7px; }
+.barRow { display: flex; align-items: center; gap: 10px; }
+.barLabel {
+  width: 110px;
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.barTrack {
+  flex: 1;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+.barFill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent-gold), #f5a742);
+  transition: width 0.5s ease;
+}
+.barValue { width: 36px; text-align: right; font-size: 0.76rem; color: var(--text-primary); }

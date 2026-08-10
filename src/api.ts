@@ -2,29 +2,41 @@
  * Backend API (EdgeOne Makers)
  *
  * Route mapping (file → route):
- *   agents/chat/index.ts                         → POST /chat                  Main chat endpoint (SSE)
- *   agents/stop/index.ts                         → POST /stop                  Abort the active agent run
- *   cloud-functions/history/index.ts             → POST /history               Get conversation history
- *   cloud-functions/conversations/index.ts       → POST /conversations         List conversations for a user
- *   cloud-functions/clear-history/index.ts       → POST /clear-history         Clear messages of one conversation
- *   cloud-functions/delete-conversation/index.ts → POST /delete-conversation   Permanently delete a conversation
- *
- * This file defines all API paths and request wrappers.
+ *   agents/chat/index.py        → POST /chat           Strict interviewer (SSE)
+ *   agents/chat/stop.py         → POST /chat/stop      Abort the active run
+ *   agents/job-agent/index.py   → POST /job-agent      Job-search agent (SSE)
+ *   cloud-functions/history/index.py          → POST /history
+ *   cloud-functions/conversations/index.py    → POST /conversations
+ *   cloud-functions/clear-history/index.py    → POST /clear-history
+ *   cloud-functions/delete-conversation/index.py → POST /delete-conversation
+ *   cloud-functions/jobs/index.py    → POST /jobs       Job library
+ *   cloud-functions/report/index.py  → POST /report      Market report
+ *   cloud-functions/match/index.py   → POST /match       Resume vs one JD
+ *   cloud-functions/match-rank/index.py → POST /match-rank Resume vs all jobs
  */
 
 import type {
   Message,
   ListConversationsParams,
   ListConversationsResponse,
+  Job,
+  MarketReport,
+  MatchResponse,
+  InterviewMode,
 } from './types';
 
 export const API = {
   chat: '/chat',
-  chatStop: '/stop',                        // Abort the active agent run
-  history: '/history',                      // Get conversation history
-  clearHistory: '/clear-history',           // Clear messages in a conversation
-  conversations: '/conversations',          // List conversations for a user
-  deleteConversation: '/delete-conversation', // Permanently delete a conversation
+  chatStop: '/chat/stop',                  // FIX: was '/stop', real route is /chat/stop
+  jobAgent: '/job-agent',
+  history: '/history',
+  clearHistory: '/clear-history',
+  conversations: '/conversations',
+  deleteConversation: '/delete-conversation',
+  jobs: '/jobs',
+  report: '/report',
+  match: '/match',
+  matchRank: '/match-rank',
 } as const;
 
 export interface RawSseEvent {
@@ -42,77 +54,43 @@ export interface StreamCallbacks {
   onRawEvent?: (event: RawSseEvent) => void;
 }
 
-/** Get conversation history for restoring the chat window after page refresh. */
-export async function fetchConversationHistory(
-  conversationId: string,
-  userId?: string,
-): Promise<Message[]> {
-  const startTime = Date.now();
-  console.log(`[History] Request start time: ${new Date(startTime).toLocaleString()}`);
-
-  try {
-    const res = await fetch(API.history, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ conversation_id: conversationId, user_id: userId }),
-    });
-
-    if (!res.ok) {
-      const endTime = Date.now();
-      console.log(`[History] Request end time: ${new Date(endTime).toLocaleString()}`);
-      console.log(`[History] Total time: ${endTime - startTime}ms`);
-      return [];
-    }
-
-    const data = await res.json().catch(() => null) as { messages?: Message[] } | null;
-    const endTime = Date.now();
-    console.log(`[History] Request end time: ${new Date(endTime).toLocaleString()}`);
-    console.log(`[History] Total time: ${endTime - startTime}ms`);
-    return Array.isArray(data?.messages) ? data.messages : [];
-  } catch {
-    const endTime = Date.now();
-    console.log(`[History] Request end time: ${new Date(endTime).toLocaleString()}`);
-    console.log(`[History] Total time: ${endTime - startTime}ms (aborted with error)`);
-    return [];
-  }
+export interface StreamOptions {
+  userId?: string;
+  userMsgId?: string;
+  botMsgId?: string;
+  /** Extra fields merged into the request body (e.g. interview mode/jdId/material). */
+  extraBody?: Record<string, unknown>;
 }
 
 /**
- * Stream POST /chat via SSE
+ * Generic SSE stream against any agents/* endpoint.
  * Backend pushes events: text_delta / tool_called / done / error
- *
- * Returns an AbortController the caller can use to abort (or pair with /chat/stop for graceful abort).
+ * Returns an AbortController the caller can use to abort (or pair with the
+ * matching /.../stop endpoint for graceful abort).
  */
-export function sendMessageStream(
+export function streamMessage(
+  endpoint: string,
   message: string,
   callbacks: StreamCallbacks,
   conversationId?: string,
-  options?: { userId?: string; userMsgId?: string; botMsgId?: string },
+  options?: StreamOptions,
 ): AbortController {
   const ctrl = new AbortController();
 
   (async () => {
     try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      if (conversationId) {
-        headers['makers-conversation-id'] = conversationId;
-      }
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (conversationId) headers['makers-conversation-id'] = conversationId;
 
-      const res = await fetch(API.chat, {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers,
         body: JSON.stringify({
           message,
-          // userId is camelCase here for parity with claude-agent-starter's
-          // chat handler convention. The backend reads body.userId ?? body.user_id
-          // to be tolerant of both.
           userId: options?.userId,
           userMsgId: options?.userMsgId,
           botMsgId: options?.botMsgId,
+          ...(options?.extraBody || {}),
         }),
         signal: ctrl.signal,
       });
@@ -123,10 +101,7 @@ export function sendMessageStream(
       }
 
       const reader = res.body?.getReader();
-      if (!reader) {
-        callbacks.onError(new Error('ReadableStream not supported'));
-        return;
-      }
+      if (!reader) { callbacks.onError(new Error('ReadableStream not supported')); return; }
 
       const decoder = new TextDecoder();
       let buffer = '';
@@ -135,26 +110,16 @@ export function sendMessageStream(
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-
         buffer += decoder.decode(value, { stream: true });
-
-        // SSE format: events separated by \n\n
         const parts = buffer.split('\n\n');
-        // Last segment may be incomplete — keep in buffer
         buffer = parts.pop() || '';
-
         for (const part of parts) {
           if (!part.trim()) continue;
           dispatchSseChunk(part, callbacks, () => { doneReceived = true; });
         }
       }
-
-      // Fallback: trigger done only if backend did not send done event
-      if (!doneReceived) {
-        callbacks.onDone();
-      }
+      if (!doneReceived) callbacks.onDone();
     } catch (err) {
-      // AbortError does not trigger error callback
       if (err instanceof DOMException && err.name === 'AbortError') return;
       callbacks.onError(err instanceof Error ? err : new Error(String(err)));
     }
@@ -163,88 +128,81 @@ export function sendMessageStream(
   return ctrl;
 }
 
-/** Parse a single SSE event and dispatch to the corresponding callback */
+/** Stream POST /chat (strict interviewer). */
+export function sendMessageStream(
+  message: string,
+  callbacks: StreamCallbacks,
+  conversationId?: string,
+  options?: StreamOptions,
+): AbortController {
+  return streamMessage(API.chat, message, callbacks, conversationId, options);
+}
+
+/** Stream POST /job-agent (job-search agent). */
+export function sendJobAgentStream(
+  message: string,
+  callbacks: StreamCallbacks,
+  conversationId?: string,
+  options?: StreamOptions,
+): AbortController {
+  return streamMessage(API.jobAgent, message, callbacks, conversationId, options);
+}
+
+/** Parse a single SSE event and dispatch to the corresponding callback. */
 function dispatchSseChunk(part: string, cb: StreamCallbacks, markDone: () => void): void {
   let eventType = '';
   let data = '';
-
   for (const line of part.split('\n')) {
-    if (line.startsWith('event: ')) {
-      eventType = line.slice(7);
-    } else if (line.startsWith('data: ')) {
-      data = line.slice(6);
-    }
+    if (line.startsWith('event: ')) eventType = line.slice(7);
+    else if (line.startsWith('data: ')) data = line.slice(6);
   }
-
   if (!eventType || !data) return;
 
-  try {
-    const parsed = JSON.parse(data);
+  let parsed: unknown = null;
+  try { parsed = JSON.parse(data); } catch { /* keep raw */ }
 
-    if (cb.onRawEvent) {
-      cb.onRawEvent({
-        eventType,
-        data: parsed,
-        raw: data,
-        timestamp: Date.now(),
-      });
-    }
+  if (cb.onRawEvent) {
+    cb.onRawEvent({ eventType, data: parsed, raw: data, timestamp: Date.now() });
+  }
 
-    switch (eventType) {
-      case 'text_delta':
-        cb.onTextDelta(parsed.delta);
-        break;
-      case 'tool_called':
-        cb.onToolCalled(parsed.tool);
-        break;
-      case 'error':
-        cb.onError(new Error(parsed.message || 'agent returned error'));
-        break;
-      case 'done':
-        markDone();
-        cb.onDone();
-        break;
-    }
-  } catch {
-    if (cb.onRawEvent) {
-      cb.onRawEvent({
-        eventType,
-        data: null,
-        raw: data,
-        timestamp: Date.now(),
-      });
-    }
+  if (eventType === 'text_delta' && parsed && typeof parsed === 'object') {
+    cb.onTextDelta((parsed as { delta?: string }).delta ?? '');
+  } else if (eventType === 'tool_called' && parsed && typeof parsed === 'object') {
+    cb.onToolCalled((parsed as { tool?: string }).tool ?? '');
+  } else if (eventType === 'error') {
+    const msg = parsed && typeof parsed === 'object' ? (parsed as { message?: string }).message : '';
+    cb.onError(new Error(msg || 'agent returned error'));
+  } else if (eventType === 'done') {
+    markDone();
+    cb.onDone();
   }
 }
 
-/**
- * Request the backend to abort the currently running agent
- *
- * Note: the stop request header must NOT carry the same conversation_id as chat,
- * otherwise the runtime will overwrite chat's cancel_event with stop's cancel_event,
- * causing abort_active_run to fail. The target conversation_id is passed only via body.
- */
-export async function stopAgent(conversationId?: string): Promise<boolean> {
+/** Get conversation history for restoring the chat window after page refresh. */
+export async function fetchConversationHistory(
+  conversationId: string,
+  userId?: string,
+): Promise<Message[]> {
   try {
-    /**
-     * EdgeOne agents/ runtime requires Markers-Conversation-Id on every
-     * agents/* request (since 2026-06-05 platform upgrade) — without it
-     * the runtime returns 400 (`AGENT_CONVERSATION_ID_REQUIRED`) before
-     * the handler runs.
-     *
-     * Earlier comments in this codebase warned that adding the header on
-     * /stop would overwrite chat's abort signal slot. The new runtime is
-     * expected to no longer have that bug; if you observe stop succeeding
-     * but chat not actually aborting, revisit this and use a different
-     * cancellation channel.
-     */
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (conversationId) {
-      headers['makers-conversation-id'] = conversationId;
-    }
-    const res = await fetch(API.chatStop, {
+    const res = await fetch(API.history, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversation_id: conversationId, user_id: userId }),
+    });
+    if (!res.ok) return [];
+    const data = await res.json().catch(() => null) as { messages?: Message[] } | null;
+    return Array.isArray(data?.messages) ? data.messages : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Request the backend to abort the currently running agent (per-endpoint). */
+export async function stopAgent(endpoint: string, conversationId?: string): Promise<boolean> {
+  try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (conversationId) headers['makers-conversation-id'] = conversationId;
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers,
       body: JSON.stringify({ conversation_id: conversationId }),
@@ -261,7 +219,6 @@ export async function clearConversationHistory(
   userId?: string,
 ): Promise<boolean> {
   if (!conversationId) return false;
-
   try {
     const res = await fetch(API.clearHistory, {
       method: 'POST',
@@ -274,18 +231,11 @@ export async function clearConversationHistory(
   }
 }
 
-/**
- * List conversations for the given user (eo-uuid).
- * Returns at most `limit` (default 20) conversations ordered by lastMessageAt desc by default.
- */
+/** List conversations for the given user (eo-uuid). */
 export async function listConversations(
   params: ListConversationsParams,
 ): Promise<ListConversationsResponse> {
-  const startTime = performance.now();
-  console.log(`[conversations] start: ${new Date().toISOString()}`);
-
   const empty: ListConversationsResponse = { conversations: [] };
-
   try {
     const res = await fetch(API.conversations, {
       method: 'POST',
@@ -298,23 +248,11 @@ export async function listConversations(
         before: params.before,
       }),
     });
-
-    if (!res.ok) {
-      console.warn(`[conversations] HTTP ${res.status}`);
-      console.log(`[conversations] end: ${new Date().toISOString()}, total: ${(performance.now() - startTime).toFixed(2)}ms`);
-      return empty;
-    }
-
+    if (!res.ok) return empty;
     const data = (await res.json().catch(() => null)) as ListConversationsResponse | null;
-    console.log(`[conversations] end: ${new Date().toISOString()}, total: ${(performance.now() - startTime).toFixed(2)}ms, count=${data?.conversations?.length ?? 0}`);
     if (!data || !Array.isArray(data.conversations)) return empty;
-    return {
-      conversations: data.conversations,
-      nextCursor: data.nextCursor,
-      previousCursor: data.previousCursor,
-    };
-  } catch (e) {
-    console.warn('[conversations] request failed:', e);
+    return { conversations: data.conversations, nextCursor: data.nextCursor, previousCursor: data.previousCursor };
+  } catch {
     return empty;
   }
 }
@@ -325,7 +263,6 @@ export async function deleteConversation(
   userId?: string,
 ): Promise<boolean> {
   if (!conversationId) return false;
-
   try {
     const res = await fetch(API.deleteConversation, {
       method: 'POST',
@@ -337,3 +274,66 @@ export async function deleteConversation(
     return false;
   }
 }
+
+/* ───────────────────────────── Job library / report / matching ───────────── */
+
+export interface JobsQuery {
+  query?: string;
+  city?: string;
+  skill?: string;
+}
+
+export async function fetchJobs(params: JobsQuery = {}): Promise<Job[]> {
+  try {
+    const res = await fetch(API.jobs, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) return [];
+    const data = await res.json().catch(() => null) as { jobs?: Job[] } | null;
+    return Array.isArray(data?.jobs) ? data.jobs : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchReport(): Promise<MarketReport | null> {
+  try {
+    const res = await fetch(API.report, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    if (!res.ok) return null;
+    return (await res.json().catch(() => null)) as MarketReport | null;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchMatch(resume: string, jdId: string): Promise<MatchResponse | null> {
+  try {
+    const res = await fetch(API.match, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resume, jdId }),
+    });
+    if (!res.ok) return null;
+    return (await res.json().catch(() => null)) as MatchResponse | null;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchMatchRank(resume: string): Promise<MatchResponse | null> {
+  try {
+    const res = await fetch(API.matchRank, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resume }),
+    });
+    if (!res.ok) return null;
+    return (await res.json().catch(() => null)) as MatchResponse | null;
+  } catch {
+    return null;
+  }
+}
+
+export type { InterviewMode };

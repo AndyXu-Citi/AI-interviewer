@@ -1,15 +1,18 @@
 import { useEffect, useRef } from 'react';
 import type { Message } from '../types';
 import { useT } from '../i18n';
+import type { MessageKeys } from '../i18n';
 import ChatBubble from './ChatBubble';
 import styles from './ChatWindow.module.css';
 
 interface Props {
   messages: Message[];
   loading: boolean;
+  titleKey?: MessageKeys;
+  emptyHintKey?: MessageKeys;
 }
 
-export default function ChatWindow({ messages, loading }: Props) {
+export default function ChatWindow({ messages, loading, titleKey, emptyHintKey }: Props) {
   const windowRef = useRef<HTMLDivElement>(null);
   const { t } = useT();
 
@@ -34,12 +37,9 @@ export default function ChatWindow({ messages, loading }: Props) {
       {messages.length === 0 && (
         <div className={styles.empty}>
           <span className={styles.emptyIcon}>⬡</span>
-          <p className={styles.emptyTitle}>{t("empty.title")}</p>
+          <p className={styles.emptyTitle}>{t(titleKey ?? "empty.title")}</p>
           <p className={styles.emptyHint}>
-            {t("empty.hint")}
-          </p>
-          <p className={styles.emptyFeatures}>
-            {t("empty.features")}
+            {t(emptyHintKey ?? "empty.hint")}
           </p>
         </div>
       )}

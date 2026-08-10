@@ -1,0 +1,43 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+.compact .button {
+  font-size: 0.75rem;
+  padding: 6px 10px;
+}
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px dashed var(--bg-border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.button:hover {
+  border-color: var(--accent-gold);
+  background: rgba(245, 200, 66, 0.08);
+}
+.button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.hint {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+.busy {
+  font-size: 0.72rem;
+  color: var(--accent-gold);
+}
+.error {
+  font-size: 0.72rem;
+  color: #ff6b6b;
+}

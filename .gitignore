@@ -39,3 +39,6 @@ plan/
 # AI assistant local instructions
 CLAUDE.md
 AGENTS.md
+
+# WorkBuddy local project memory (not part of the app)
+.workbuddy/

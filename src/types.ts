@@ -3,12 +3,6 @@ export interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: number;
-  /**
-   * True while the assistant is actively producing this message
-   * (between the first text_delta and the final done/error event).
-   * Drives the in-bubble blinking caret to give the user feedback
-   * that more content is still streaming. Cleared once done/error fires.
-   */
   streaming?: boolean;
 }
 
@@ -17,13 +11,11 @@ export interface ToolLampState {
   label: string;
   icon: string;
   active: boolean;
-  animKey: number;   // Incremented on each activation to remount and replay animation
+  animKey: number;
+  i18nKey?: string;
 }
 
-/**
- * Lightweight summary of a conversation, returned by /conversations.
- * Used to render the left sidebar — does NOT contain full message content.
- */
+/** Lightweight conversation summary returned by /conversations. */
 export interface ConversationSummary {
   id: string;
   title: string;
@@ -46,4 +38,43 @@ export interface ListConversationsResponse {
   conversations: ConversationSummary[];
   nextCursor?: string;
   previousCursor?: string;
+}
+
+/* ───────────────────── Job library / market / matching ───────────────────── */
+
+export type InterviewMode = 'resume' | 'project' | 'knowledge' | 'jd';
+
+export interface Job {
+  id: string;
+  title: string;
+  company: string;
+  salary: string;
+  city?: string;
+  district?: string;
+  experience?: string;
+  education?: string;
+  skills: string[];
+  description?: string;
+  source?: string;
+  crawled_at?: string;
+}
+
+export interface MarketReport {
+  total: number;
+  top_skills: [string, number][];
+  cities: [string, number][];
+  education: [string, number][];
+  experience: [string, number][];
+  salary_avg_k?: number | null;
+}
+
+export interface MatchRow extends Job {
+  score: number;
+  reason: string;
+}
+
+export interface MatchResponse {
+  mode: 'single' | 'rank';
+  job?: MatchRow;
+  ranked?: MatchRow[];
 }
