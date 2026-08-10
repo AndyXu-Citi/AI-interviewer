@@ -323,6 +323,38 @@ export interface JobsQuery {
   skill?: string;
 }
 
+/**
+ * Fix latin1 mojibake: when MySQL returns UTF-8 bytes interpreted as latin1,
+ * each JS char code IS the original latin1 byte. Re-decode those bytes as UTF-8
+ * to recover correct Chinese. Safe: strings already containing chars > U+00FF
+ * (e.g. correct Chinese) are returned unchanged.
+ */
+function fixMojibake(obj: any): any {
+  if (typeof obj === 'string') {
+    let canFix = obj.length > 0;
+    const bytes = new Uint8Array(obj.length);
+    for (let i = 0; i < obj.length; i++) {
+      const code = obj.charCodeAt(i);
+      if (code > 255) { canFix = false; break; }
+      bytes[i] = code;
+    }
+    if (canFix) {
+      try {
+        const decoded = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+        if (!decoded.includes('�')) return decoded;
+      } catch { /* fall through */ }
+    }
+    return obj;
+  }
+  if (Array.isArray(obj)) return obj.map(fixMojibake);
+  if (obj && typeof obj === 'object') {
+    const out: any = {};
+    for (const k of Object.keys(obj)) out[k] = fixMojibake(obj[k]);
+    return out;
+  }
+  return obj;
+}
+
 export async function fetchJobs(params: JobsQuery = {}): Promise<Job[]> {
   try {
     const res = await fetch(API.jobs, {
@@ -332,7 +364,8 @@ export async function fetchJobs(params: JobsQuery = {}): Promise<Job[]> {
       body: JSON.stringify(params),
     });
     if (!res.ok) return [];
-    const data = await res.json().catch(() => null) as { jobs?: Job[] } | null;
+    const raw = await res.json().catch(() => null) as { jobs?: Job[] } | null;
+    const data = fixMojibake(raw) as { jobs?: Job[] } | null;
     return Array.isArray(data?.jobs) ? data.jobs : [];
   } catch {
     return [];
@@ -343,7 +376,8 @@ export async function fetchReport(): Promise<MarketReport | null> {
   try {
     const res = await fetch(API.report, { method: 'POST', headers: jsonHeaders(), credentials: 'same-origin', body: '{}' });
     if (!res.ok) return null;
-    return (await res.json().catch(() => null)) as MarketReport | null;
+    const raw = (await res.json().catch(() => null)) as MarketReport | null;
+    return fixMojibake(raw) as MarketReport | null;
   } catch {
     return null;
   }
@@ -358,7 +392,8 @@ export async function fetchMatch(resume: string, jdId: string): Promise<MatchRes
       body: JSON.stringify({ resume, jdId }),
     });
     if (!res.ok) return null;
-    return (await res.json().catch(() => null)) as MatchResponse | null;
+    const raw = (await res.json().catch(() => null)) as MatchResponse | null;
+    return fixMojibake(raw) as MatchResponse | null;
   } catch {
     return null;
   }
@@ -373,7 +408,8 @@ export async function fetchMatchRank(resume: string): Promise<MatchResponse | nu
       body: JSON.stringify({ resume }),
     });
     if (!res.ok) return null;
-    return (await res.json().catch(() => null)) as MatchResponse | null;
+    const raw = (await res.json().catch(() => null)) as MatchResponse | null;
+    return fixMojibake(raw) as MatchResponse | null;
   } catch {
     return null;
   }
