@@ -20,21 +20,33 @@ from ._logger import create_logger
 
 logger = create_logger("db")
 
-_SEED_PATH = os.path.abspath(
-    os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "seed", "boss_jobs.json")
-)
+# Seed is resolved from two locations, in priority order:
+#   1. data/seed/boss_jobs.json    -> local dev (written by scripts/crawl_boss.py)
+#   2. agents/_seed/boss_jobs.json  -> bundled with the function for EdgeOne Makers,
+#      because Makers only packages the agents/ tree, not the repo-root data/ dir.
+_SEED_PATHS = [
+    os.path.abspath(
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "seed", "boss_jobs.json")
+    ),
+    os.path.join(os.path.dirname(__file__), "_seed", "boss_jobs.json"),
+]
 
 _CONN = None
 
 
 def _load_seed() -> list[dict]:
-    try:
-        with open(_SEED_PATH, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return data if isinstance(data, list) else data.get("jobs", [])
-    except FileNotFoundError:
-        logger.error(f"[db] seed not found: {_SEED_PATH}")
-        return []
+    for _path in _SEED_PATHS:
+        try:
+            with open(_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return data if isinstance(data, list) else data.get("jobs", [])
+        except FileNotFoundError:
+            continue
+        except Exception as e:
+            logger.error(f"[db] seed read failed ({_path}): {type(e).__name__}: {e}")
+            continue
+    logger.error("[db] seed not found in any location; returning empty")
+    return []
 
 
 def get_connection():
