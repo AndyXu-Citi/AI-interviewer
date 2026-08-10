@@ -3,7 +3,7 @@
   "outputDirectory": "dist",
   "cloudFunctions": {
     "nodejs": {
-      "includeFiles": []
+      "includeFiles": ["data/**"]
     }
   },
   "agents": {
