@@ -1,15 +1,6 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "cloudFunctions": {
-    "nodejs": {
-      "includeFiles": ["data/**"]
-    },
-    "python": {
-      "includeFiles": ["data/**"],
-      "maxDuration": 60
-    }
-  },
   "agents": {
     "timeout": 300,
     "framework": "openai-agents-sdk",
