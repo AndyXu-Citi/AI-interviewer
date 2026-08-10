@@ -25,6 +25,42 @@ import type {
   InterviewMode,
 } from './types';
 
+/**
+ * EdgeOne Makers requires EVERY request to carry a `makers-conversation-id`
+ * header: 6-36 chars, charset [0-9a-zA-Z-_.]. Missing/invalid => HTTP 400.
+ * We therefore attach it unconditionally on all requests.
+ */
+const MAKERS_ID_ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_.';
+const MAKERS_ID_RE = /^[0-9a-zA-Z-_.]{6,36}$/;
+
+/** Generate a valid makers-conversation-id (32 chars). */
+function genMakersConversationId(): string {
+  const len = 32;
+  const out = new Array<string>(len);
+  const bytes = new Uint8Array(len);
+  crypto.getRandomValues(bytes);
+  for (let i = 0; i < len; i++) out[i] = MAKERS_ID_ALPHABET[bytes[i] % MAKERS_ID_ALPHABET.length];
+  return out.join('');
+}
+
+/** Stable per-session fallback id for stateless endpoints (jobs/report/match...). */
+const sessionMakersId = genMakersConversationId();
+
+/** Resolve a valid makers-conversation-id: keep a valid conversationId, else fall back. */
+function makersConversationId(conversationId?: string): string {
+  if (conversationId && MAKERS_ID_RE.test(conversationId)) return conversationId;
+  // invalid/empty conversationId: keep it stable per-session instead of random per call
+  return sessionMakersId;
+}
+
+/** JSON request headers that always include a valid makers-conversation-id. */
+function jsonHeaders(conversationId?: string): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    'makers-conversation-id': makersConversationId(conversationId),
+  };
+}
+
 export const API = {
   chat: '/chat',
   chatStop: '/chat/stop',                  // FIX: was '/stop', real route is /chat/stop
@@ -79,8 +115,7 @@ export function streamMessage(
 
   (async () => {
     try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (conversationId) headers['makers-conversation-id'] = conversationId;
+      const headers = jsonHeaders(conversationId);
 
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -187,7 +222,7 @@ export async function fetchConversationHistory(
   try {
     const res = await fetch(API.history, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: jsonHeaders(conversationId),
       credentials: 'same-origin',
       body: JSON.stringify({ conversation_id: conversationId, user_id: userId }),
     });
@@ -202,8 +237,7 @@ export async function fetchConversationHistory(
 /** Request the backend to abort the currently running agent (per-endpoint). */
 export async function stopAgent(endpoint: string, conversationId?: string): Promise<boolean> {
   try {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (conversationId) headers['makers-conversation-id'] = conversationId;
+    const headers = jsonHeaders(conversationId);
     const res = await fetch(endpoint, {
       method: 'POST',
       headers,
@@ -225,7 +259,7 @@ export async function clearConversationHistory(
   try {
     const res = await fetch(API.clearHistory, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: jsonHeaders(conversationId),
       credentials: 'same-origin',
       body: JSON.stringify({ conversation_id: conversationId, user_id: userId }),
     });
@@ -243,7 +277,7 @@ export async function listConversations(
   try {
     const res = await fetch(API.conversations, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: jsonHeaders(),
       credentials: 'same-origin',
       body: JSON.stringify({
         user_id: params.userId,
@@ -271,7 +305,7 @@ export async function deleteConversation(
   try {
     const res = await fetch(API.deleteConversation, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: jsonHeaders(conversationId),
       credentials: 'same-origin',
       body: JSON.stringify({ conversation_id: conversationId, user_id: userId }),
     });
@@ -293,7 +327,7 @@ export async function fetchJobs(params: JobsQuery = {}): Promise<Job[]> {
   try {
     const res = await fetch(API.jobs, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: jsonHeaders(),
       credentials: 'same-origin',
       body: JSON.stringify(params),
     });
@@ -307,7 +341,7 @@ export async function fetchJobs(params: JobsQuery = {}): Promise<Job[]> {
 
 export async function fetchReport(): Promise<MarketReport | null> {
   try {
-    const res = await fetch(API.report, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: '{}' });
+    const res = await fetch(API.report, { method: 'POST', headers: jsonHeaders(), credentials: 'same-origin', body: '{}' });
     if (!res.ok) return null;
     return (await res.json().catch(() => null)) as MarketReport | null;
   } catch {
@@ -319,7 +353,7 @@ export async function fetchMatch(resume: string, jdId: string): Promise<MatchRes
   try {
     const res = await fetch(API.match, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: jsonHeaders(),
       credentials: 'same-origin',
       body: JSON.stringify({ resume, jdId }),
     });
@@ -334,7 +368,7 @@ export async function fetchMatchRank(resume: string): Promise<MatchResponse | nu
   try {
     const res = await fetch(API.matchRank, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: jsonHeaders(),
       credentials: 'same-origin',
       body: JSON.stringify({ resume }),
     });
