@@ -5,14 +5,14 @@
  *   agents/chat/index.py        → POST /chat           Strict interviewer (SSE)
  *   agents/chat/stop.py         → POST /chat/stop      Abort the active run
  *   agents/job-agent/index.py   → POST /job-agent      Job-search agent (SSE)
- *   cloud-functions/history/index.py          → POST /history
- *   cloud-functions/conversations/index.py    → POST /conversations
- *   cloud-functions/clear-history/index.py    → POST /clear-history
- *   cloud-functions/delete-conversation/index.py → POST /delete-conversation
- *   cloud-functions/jobs/index.py    → POST /jobs       Job library
- *   cloud-functions/report/index.py  → POST /report      Market report
- *   cloud-functions/match/index.py   → POST /match       Resume vs one JD
- *   cloud-functions/match-rank/index.py → POST /match-rank Resume vs all jobs
+ *   agents/history/index.py     → POST /history
+ *   agents/conversations/index.py    → POST /conversations
+ *   agents/clear-history/index.py    → POST /clear-history
+ *   agents/delete-conversation/index.py → POST /delete-conversation
+ *   agents/jobs/index.py        → POST /jobs           Job library
+ *   agents/report/index.py      → POST /report         Market report
+ *   agents/match/index.py       → POST /match          Resume vs one JD
+ *   agents/match-rank/index.py  → POST /match-rank     Resume vs all jobs
  */
 
 import type {
@@ -38,25 +38,6 @@ export const API = {
   match: '/match',
   matchRank: '/match-rank',
 } as const;
-
-/**
- * EdgeOne Pages preview links add `eo_token` / `eo_time` query params for access
- * control. Relative API fetches would otherwise hit the page's 401 gate. If the
- * current page URL carries preview tokens, forward them to backend requests.
- */
-function withPreviewToken(endpoint: string): string {
-  if (typeof window === 'undefined' || !endpoint) return endpoint;
-  const search = new URLSearchParams(window.location.search);
-  const token = search.get('eo_token');
-  const time = search.get('eo_time');
-  const key = search.get('eo_key');
-  if (!token && !time && !key) return endpoint;
-  const url = new URL(endpoint, window.location.href);
-  if (token) url.searchParams.set('eo_token', token);
-  if (time) url.searchParams.set('eo_time', time);
-  if (key) url.searchParams.set('eo_key', key);
-  return url.pathname + url.search;
-}
 
 export interface RawSseEvent {
   eventType: string;
@@ -101,9 +82,10 @@ export function streamMessage(
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (conversationId) headers['makers-conversation-id'] = conversationId;
 
-      const res = await fetch(withPreviewToken(endpoint), {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers,
+        credentials: 'same-origin',
         body: JSON.stringify({
           message,
           userId: options?.userId,
@@ -203,9 +185,10 @@ export async function fetchConversationHistory(
   userId?: string,
 ): Promise<Message[]> {
   try {
-    const res = await fetch(withPreviewToken(API.history), {
+    const res = await fetch(API.history, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify({ conversation_id: conversationId, user_id: userId }),
     });
     if (!res.ok) return [];
@@ -221,9 +204,10 @@ export async function stopAgent(endpoint: string, conversationId?: string): Prom
   try {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (conversationId) headers['makers-conversation-id'] = conversationId;
-    const res = await fetch(withPreviewToken(endpoint), {
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers,
+      credentials: 'same-origin',
       body: JSON.stringify({ conversation_id: conversationId }),
     });
     return res.ok;
@@ -239,9 +223,10 @@ export async function clearConversationHistory(
 ): Promise<boolean> {
   if (!conversationId) return false;
   try {
-    const res = await fetch(withPreviewToken(API.clearHistory), {
+    const res = await fetch(API.clearHistory, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify({ conversation_id: conversationId, user_id: userId }),
     });
     return res.ok;
@@ -256,9 +241,10 @@ export async function listConversations(
 ): Promise<ListConversationsResponse> {
   const empty: ListConversationsResponse = { conversations: [] };
   try {
-    const res = await fetch(withPreviewToken(API.conversations), {
+    const res = await fetch(API.conversations, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify({
         user_id: params.userId,
         limit: params.limit,
@@ -283,9 +269,10 @@ export async function deleteConversation(
 ): Promise<boolean> {
   if (!conversationId) return false;
   try {
-    const res = await fetch(withPreviewToken(API.deleteConversation), {
+    const res = await fetch(API.deleteConversation, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify({ conversation_id: conversationId, user_id: userId }),
     });
     return res.ok;
@@ -304,9 +291,10 @@ export interface JobsQuery {
 
 export async function fetchJobs(params: JobsQuery = {}): Promise<Job[]> {
   try {
-    const res = await fetch(withPreviewToken(API.jobs), {
+    const res = await fetch(API.jobs, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify(params),
     });
     if (!res.ok) return [];
@@ -319,7 +307,7 @@ export async function fetchJobs(params: JobsQuery = {}): Promise<Job[]> {
 
 export async function fetchReport(): Promise<MarketReport | null> {
   try {
-    const res = await fetch(withPreviewToken(API.report), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    const res = await fetch(API.report, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: '{}' });
     if (!res.ok) return null;
     return (await res.json().catch(() => null)) as MarketReport | null;
   } catch {
@@ -329,9 +317,10 @@ export async function fetchReport(): Promise<MarketReport | null> {
 
 export async function fetchMatch(resume: string, jdId: string): Promise<MatchResponse | null> {
   try {
-    const res = await fetch(withPreviewToken(API.match), {
+    const res = await fetch(API.match, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify({ resume, jdId }),
     });
     if (!res.ok) return null;
@@ -343,9 +332,10 @@ export async function fetchMatch(resume: string, jdId: string): Promise<MatchRes
 
 export async function fetchMatchRank(resume: string): Promise<MatchResponse | null> {
   try {
-    const res = await fetch(withPreviewToken(API.matchRank), {
+    const res = await fetch(API.matchRank, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify({ resume }),
     });
     if (!res.ok) return null;
