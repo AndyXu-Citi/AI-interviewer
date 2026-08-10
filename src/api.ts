@@ -357,17 +357,25 @@ function fixMojibake(obj: any): any {
 
 export async function fetchJobs(params: JobsQuery = {}): Promise<Job[]> {
   try {
-    const res = await fetch(API.jobs, {
+    // Cache-buster: EdgeOne preview may cache the POST response; force fresh fetch.
+    const url = `${API.jobs}?_=${Date.now()}`;
+    const res = await fetch(url, {
       method: 'POST',
       headers: jsonHeaders(),
       credentials: 'same-origin',
       body: JSON.stringify(params),
     });
-    if (!res.ok) return [];
-    const raw = await res.json().catch(() => null) as { jobs?: Job[] } | null;
+    if (!res.ok) {
+      console.warn('[fetchJobs] HTTP', res.status, await res.text().catch(() => ''));
+      return [];
+    }
+    const raw = await res.json().catch((e) => { console.warn('[fetchJobs] json parse error', e); return null; }) as { jobs?: Job[] } | null;
     const data = fixMojibake(raw) as { jobs?: Job[] } | null;
-    return Array.isArray(data?.jobs) ? data.jobs : [];
-  } catch {
+    const jobs = Array.isArray(data?.jobs) ? data.jobs : [];
+    console.log('[fetchJobs] got', jobs.length, 'jobs');
+    return jobs;
+  } catch (e) {
+    console.warn('[fetchJobs] exception', e);
     return [];
   }
 }
